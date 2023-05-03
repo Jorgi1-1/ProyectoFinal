@@ -8,7 +8,7 @@
 
 #define BOARD_SIZE 10
 
-pid_t player_pid[2];
+pid_t player_pid;
 pthread_t timer_thread;
 int timer = 120;
 pthread_mutex_t timer_mutex;
@@ -74,6 +74,11 @@ int place_ship(char board[][BOARD_SIZE], int size)
 
     printf("Enter direction (0 for horizontal, 1 for vertical): \n");
     scanf("%d", &dir);
+    if(dir > 1)
+    {
+        printf("Choose only 0 or 1. Try again.\n");
+        place_ship(board, size);
+    }
 
     for (int i = 0; i < size; i++) 
     {
@@ -82,6 +87,7 @@ int place_ship(char board[][BOARD_SIZE], int size)
         if (!is_valid(board, new_row, new_col)) 
         {
             printf("Invalid input. Try again.\n");
+            place_ship(board, size);
             return 0;
         }
     }
@@ -96,7 +102,7 @@ int place_ship(char board[][BOARD_SIZE], int size)
     return 1;
 }
 
-void *timer_func(void *arg) 
+void *timer_func(void *arg)     
 {
     while (timer > 0) 
     {
@@ -105,9 +111,8 @@ void *timer_func(void *arg)
         timer--;
         pthread_mutex_unlock(&timer_mutex);
     }
-    printf("Time's up!\n");
-    kill(player_pid[0], SIGINT);
-    kill(player_pid[1], SIGINT);
+    printf("Time's up! Game ended in a tie.\n");
+    kill(player_pid, SIGINT);
     return 0;
 }
 
@@ -136,6 +141,7 @@ int check_hit(char board[][BOARD_SIZE], char pBoard[] [BOARD_SIZE], char input[]
     }else if (board[row][col] == 'X' || pBoard[row][col] == 'o')
     {
         printf("You already fired there.\n");
+        get_input(input);
         return 0;
     }else 
     {
@@ -229,6 +235,7 @@ void play_game(char board1[][BOARD_SIZE], char board2[][BOARD_SIZE], char boardp
 
 int main() 
 {
+    pid_t p1ships_Pid, p2ships_Pid;
     int ship_lengths[] = {5, 4, 3, 3, 2};
 
     char board1[BOARD_SIZE][BOARD_SIZE];
@@ -241,7 +248,7 @@ int main()
     init_board(board2);
     init_board(boardP1);
 
-
+    
     printf("Player 1, place your ships: \n");
     for ( int i = 0; i < 5; i++)
     {
@@ -249,14 +256,15 @@ int main()
         place_ship(board1, ship);
     }
     clear_screen();
-    
+
     printf("Player 2, place your ships: \n");
     for (int i = 0; i < 5; i++)
     {
         int ship = ship_lengths[i];
         place_ship(board2, ship);
     }
-    
+
+
     pthread_mutex_init(&timer_mutex, NULL);
     pthread_create(&timer_thread, NULL, timer_func, NULL);
     play_game(board1, board2, boardP1, boardP2);
